@@ -17,7 +17,7 @@ return new class extends Migration
             $table->engine = 'InnoDB';
             $table->id();
             $table->string("common_name");
-            $table->json("watering_general_benchmark");
+            $table->json("watering_general_benchmark")->nullable();
         });
 
 
