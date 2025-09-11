@@ -15,7 +15,6 @@ class PlantController extends Controller
     public function index(Request $request){
 
         $plants = Plant::all();
-        // $plants = json_encode($plants);
 
         return $this->success($plants);
         
@@ -27,17 +26,35 @@ class PlantController extends Controller
 
         $plant = Plant::create([
             'common_name' => $request->common_name,
-            'watering_general_benchmark' => $request->watering_general_benchmark,
+            'watering_general_benchmark' => json_encode($request->watering_general_benchmark),
         ]);
-
-        return $this->success($plant, "Plant succesfully created");
+        return $this->success($plant, "Plant succesfully created", 201);
     }
 
 
-    public function show(Request $request){
+    public function show($name){
+
+        // Todo : Meilleur algo pour chercher un nom
+        $plant = Plant::where('common_name', 'LIKE', '%' . $name . '%')->first();
+
+        if (!$plant) {
+            return $this->error(null, 'Plant not found', 404);
+        }
+
+        return $this->success($plant);
 
     }
-    public function destroy(Request $request){
+
+    public function destroy($id){
+
+        $plant = Plant::find($id);
+        if (!$plant) {
+            return $this->error(null, 'Plant not found', 404);
+        }
+
+        $plant->delete();
+
+        return $this->success(null, 'Plant deleted successfully');
 
     }
     

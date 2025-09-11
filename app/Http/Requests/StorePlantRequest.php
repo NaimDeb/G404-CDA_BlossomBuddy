@@ -23,7 +23,7 @@ class StorePlantRequest extends FormRequest
     {
         return [
             "common_name" => "required|string",
-            "watering_general_benchmark" => "json"
+            "watering_general_benchmark" => "required|json",
         ];
     }
 }
