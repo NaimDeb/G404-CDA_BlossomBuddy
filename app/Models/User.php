@@ -50,7 +50,7 @@ class User extends Authenticatable
     public function plants(){
         return $this->belongsToMany(
             User::class,
-            "plants_user",
+            "user_plant",
             "user_id",
             "plant_id"
         );

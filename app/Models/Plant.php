@@ -33,7 +33,7 @@ class Plant extends Model
     public function users(){
         return $this->belongsToMany(
             User::class,
-            "plants_user",
+            "user_plant",
             "plant_id",
             "user_id"
         );
