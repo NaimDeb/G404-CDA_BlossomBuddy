@@ -12,6 +12,14 @@ class PlantController extends Controller
     use HttpResponses;
 
 
+    /**
+     * @OA\Get(
+     *     path="/plants",
+     *     summary="Get a list of all plants",
+     *     tags={"Plants"},
+     *     @OA\Response(response=200, description="Successful operation")
+     * )
+     */
     public function index(Request $request){
 
         $plants = Plant::all();
@@ -20,6 +28,15 @@ class PlantController extends Controller
         
     }
 
+    /**
+     * @OA\Post(
+     *     path="/plants",
+     *     summary="Create a new plant",
+     *     tags={"Plants"},
+     *     @OA\Response(response=201, description="Plant successfully created"),
+     *     @OA\Response(response=400, description="Invalid request")
+     * )
+     */
     public function store(StorePlantRequest $request){
 
         $request->validated($request->all());
@@ -32,6 +49,15 @@ class PlantController extends Controller
     }
 
 
+    /**
+     * @OA\Get(
+     *     path="/plants/{name}",
+     *     summary="Get a plant by name",
+     *     tags={"Plants"},
+     *     @OA\Response(response=200, description="Successful operation"),
+     *     @OA\Response(response=404, description="Plant not found")
+     * )
+     */
     public function show($name){
 
         // Todo : Meilleur algo pour chercher un nom
@@ -45,6 +71,15 @@ class PlantController extends Controller
 
     }
 
+    /**
+     * @OA\Delete(
+     *     path="/plants/{id}",
+     *     summary="Delete a plant",
+     *     tags={"Plants"},
+     *     @OA\Response(response=200, description="Plant deleted successfully"),
+     *     @OA\Response(response=404, description="Plant not found")
+     * )
+     */
     public function destroy($id){
 
         $plant = Plant::find($id);

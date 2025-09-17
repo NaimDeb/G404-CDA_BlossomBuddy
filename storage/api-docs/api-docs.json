@@ -1,0 +1,155 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Blossom Buddy API",
+        "description": "API pour la gestion des plantes",
+        "contact": {
+            "email": "admin@blossombuddy.com"
+        },
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8000/api",
+            "description": "Local"
+        }
+    ],
+    "paths": {
+        "/plants": {
+            "get": {
+                "tags": [
+                    "Plants"
+                ],
+                "summary": "Get a list of all plants",
+                "operationId": "79ff6b2e88cbac96d62aeab713fafbbc",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Plants"
+                ],
+                "summary": "Create a new plant",
+                "operationId": "c86787105595ef6b73ce3747ed89bb9e",
+                "responses": {
+                    "201": {
+                        "description": "Plant successfully created"
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    }
+                }
+            }
+        },
+        "/plants/{name}": {
+            "get": {
+                "tags": [
+                    "Plants"
+                ],
+                "summary": "Get a plant by name",
+                "operationId": "80a09087226b0ab8638dc9d39652a6b0",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    },
+                    "404": {
+                        "description": "Plant not found"
+                    }
+                }
+            }
+        },
+        "/plants/{id}": {
+            "delete": {
+                "tags": [
+                    "Plants"
+                ],
+                "summary": "Delete a plant",
+                "operationId": "a5b9f4e7d74f028350aa1df5b1386a1a",
+                "responses": {
+                    "200": {
+                        "description": "Plant deleted successfully"
+                    },
+                    "404": {
+                        "description": "Plant not found"
+                    }
+                }
+            }
+        },
+        "/user/plants": {
+            "get": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get a list of the user's plants",
+                "operationId": "0eb9a070f9e58bc55f14fa36d1fa5031",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation"
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "403": {
+                        "description": "Unauthorized action"
+                    }
+                }
+            }
+        },
+        "/user/plant": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Create a plant in the database and attach it to the user",
+                "operationId": "b4273403948f66e51d9e0bbc5532127b",
+                "responses": {
+                    "201": {
+                        "description": "Successful operation"
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "403": {
+                        "description": "Unauthorized action"
+                    }
+                }
+            }
+        },
+        "/user/plant/{id}": {
+            "delete": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Deletes a user's plant",
+                "operationId": "b8bc9546b7a4d8703ee245e3fd461fe7",
+                "responses": {
+                    "201": {
+                        "description": "Successful operation"
+                    },
+                    "400": {
+                        "description": "Invalid request"
+                    },
+                    "404": {
+                        "description": "Plant not found"
+                    },
+                    "403": {
+                        "description": "Unauthorized action"
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Plants",
+            "description": "Plants"
+        },
+        {
+            "name": "Users",
+            "description": "Users"
+        }
+    ]
+}

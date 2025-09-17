@@ -11,6 +11,16 @@ class UserPlantController extends Controller
 {
     use HttpResponses;
 
+    /**
+     * @OA\Get(
+     *     path="/user/plants",
+     *     summary="Get a list of the user's plants",
+     *     tags={"Users"},
+     *     @OA\Response(response=200, description="Successful operation"),
+     *     @OA\Response(response=400, description="Invalid request"),
+     *     @OA\Response(response=403, description="Unauthorized action")
+     * )
+     */
     public function index(Request $request){
 
         $user = $request->user();
@@ -21,6 +31,16 @@ class UserPlantController extends Controller
 
     }
     
+    /**
+     * @OA\Post(
+     *     path="/user/plant",
+     *     summary="Create a plant in the database and attach it to the user",
+     *     tags={"Users"},
+     *     @OA\Response(response=201, description="Successful operation"),
+     *     @OA\Response(response=400, description="Invalid request"),
+     *     @OA\Response(response=403, description="Unauthorized action")
+     * )
+     */
     public function store(StorePlantRequest $request){
 
         $request->validated($request->all());
@@ -38,6 +58,17 @@ class UserPlantController extends Controller
         return $this->success($plant, "Plant succesfully created by user " . $user->name, 201);
     }
 
+    /**
+     * @OA\Delete(
+     *     path="/user/plant/{id}",
+     *     summary="Deletes a user's plant",
+     *     tags={"Users"},
+     *     @OA\Response(response=201, description="Successful operation"),
+     *     @OA\Response(response=400, description="Invalid request"),
+     *     @OA\Response(response=404, description="Plant not found"),
+     *     @OA\Response(response=403, description="Unauthorized action")
+     * )
+     */
     public function destroy($id, Request $request){
 
         $user = $request->user();
