@@ -15,17 +15,27 @@ class PlantController extends Controller
     /**
      * @OA\Get(
      *     path="/plants",
-     *     summary="Get a list of all plants",
+     *     summary="Search plants or get all plants",
      *     tags={"Plants"},
+     *     @OA\Parameter(
+     *         name="q",
+     *         in="query",
+     *         description="Search query for plant names",
+     *         required=false,
+     *         @OA\Schema(type="string")
+     *     ),
      *     @OA\Response(response=200, description="Successful operation")
      * )
      */
-    public function index(Request $request){
+    public function index(Request $request)
+    {
+        if ($request->has('q')) {
+            $results = app(\App\Services\PlantService::class)->searchPlantByName($request->q);
+            return $this->success($results);
+        }
 
         $plants = Plant::all();
-
         return $this->success($plants);
-        
     }
 
     /**
@@ -43,7 +53,7 @@ class PlantController extends Controller
 
         $plant = Plant::create([
             'common_name' => $request->common_name,
-            'watering_general_benchmark' => json_encode($request->watering_general_benchmark),
+            'watering_general_benchmark' => ($request->watering_general_benchmark),
         ]);
         return $this->success($plant, "Plant succesfully created", 201);
     }
@@ -52,23 +62,21 @@ class PlantController extends Controller
     /**
      * @OA\Get(
      *     path="/plants/{name}",
-     *     summary="Get a plant by name",
+     *     summary="Get complete plant data by name",
      *     tags={"Plants"},
      *     @OA\Response(response=200, description="Successful operation"),
      *     @OA\Response(response=404, description="Plant not found")
      * )
      */
-    public function show($name){
+    public function show($name)
+    {
+        $plantData = app(\App\Services\PlantService::class)->checkAndCompleteData($name);
 
-        // Todo : Meilleur algo pour chercher un nom
-        $plant = Plant::where('common_name', 'LIKE', '%' . $name . '%')->first();
-
-        if (!$plant) {
+        if (!$plantData) {
             return $this->error(null, 'Plant not found', 404);
         }
 
-        return $this->success($plant);
-
+        return $this->success($plantData);
     }
 
     /**

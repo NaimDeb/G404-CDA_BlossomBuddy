@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Services;
 
 use App\Interfaces\PlantServiceInterface;
@@ -10,8 +9,67 @@ use Illuminate\Support\Facades\Log;
 // Service appelé dans la commande FetchPlants
 class PlantService implements PlantServiceInterface
 {
-    protected $apiUrl = 'https://perenual.com/api/v2/species/details';
+    // Params : key (required). Url must be /{id}?key=your_api_key
+    protected $apiIDSearchlUrl = 'https://perenual.com/api/v2/species/details';
+    // Params : key (required), q (optional), page=1 (required?)
+    protected $apiNameSearchUrl = 'https://perenual.com/api/v2/species-list';
     protected $cacheDuration = 86400; // 24 heures en secondes
+    protected $maxApiSearchResults = 5; // Limite de résultats pour l'API
+    protected $minDbSearchResults = 3; // Nombre minimum de résultats DB avant de stopper la recherche API
+
+    /**
+     * Recherche une plante par nom dans la DB, le cache, puis l'API.
+     *
+     * @param string $name
+     * @param int $maxRetries
+     * @return array
+     */
+    public function searchPlantByName(string $name, int $maxRetries = 3): array
+    {
+        // 1. Recherche d'abord dans la base de données
+        $dbResults = Plant::where('common_name', 'LIKE', '%' . $name . '%')
+            ->limit($this->maxApiSearchResults)
+            ->get()
+            ->toArray();
+
+        // Si on a assez de résultats dans la DB, on s'arrête là
+        if (count($dbResults) >= $this->minDbSearchResults) {
+            return ['source' => 'database', 'results' => $dbResults];
+        }
+
+        // 2. Recherche dans le cache
+        $cacheKey = "plant_search_" . md5($name);
+        if (cache()->has($cacheKey)) {
+            $cacheResults = cache()->get($cacheKey);
+            return ['source' => 'cache', 'results' => $cacheResults];
+        }
+
+        // 3. Recherche via l'API
+        $apiKey = env('PLANT_API_KEY');
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $response = \Illuminate\Support\Facades\Http::withoutVerifying()->get($this->apiNameSearchUrl, [
+                    'key' => $apiKey,
+                    'q' => $name,
+                    'limit' => $this->maxApiSearchResults
+                ]);
+                if ($response->successful()) {
+                    $data = $response->json();
+                    cache()->put($cacheKey, $data, now()->addSeconds($this->cacheDuration));
+                    return ['source' => 'api', 'results' => $data];
+                }
+                if ($attempt < $maxRetries) {
+                    sleep(2);
+                }
+            } catch (\Exception $e) {
+                if ($attempt === $maxRetries) {
+                    throw $e;
+                }
+                sleep(2);
+            }
+        }
+        return ['source' => 'none', 'results' => []];
+    }
 
     public function fetchAndStorePlants(): void
     {
@@ -92,6 +150,9 @@ class PlantService implements PlantServiceInterface
             }
         }
 
+
+
+
         return [];
     }
 
@@ -104,7 +165,7 @@ class PlantService implements PlantServiceInterface
     {
         $apiKey = env('PLANT_API_KEY');
 
-        $response = Http::withoutVerifying()->get("{$this->apiUrl}/{$id}", [
+        $response = Http::withoutVerifying()->get("{$this->apiIDSearchlUrl}/{$id}", [
             'key' => $apiKey
         ]);
 
@@ -144,5 +205,76 @@ class PlantService implements PlantServiceInterface
             ['api_id' => $plantData['api_id']],
             $plantData
         );
+    }
+
+    /**
+     * Vérifie si les données d'une plante sont complètes et les complète via l'API si nécessaire
+     * @param string $name Nom de la plante
+     * @return array|null Données complètes de la plante ou null si non trouvée
+     */
+    public function checkAndCompleteData(string $name): ?array
+    {
+        // Chercher d'abord dans la DB
+        $plant = Plant::where('common_name', 'LIKE', '%' . $name . '%')->first();
+        
+        if (!$plant) {
+            // Si pas dans la DB, chercher via l'API
+            $searchResult = $this->searchPlantByName($name);
+            if (empty($searchResult['results']) || empty($searchResult['results']['data'])) {
+                return null;
+            }
+
+            // Récupérer les données complètes via l'API pour le premier résultat
+            $apiId = $searchResult['results']['data'][0]['id'];
+            $completeData = $this->getPlantData($apiId);
+            if (empty($completeData)) {
+                return null;
+            }
+
+            // Filtrer et sauvegarder les données
+            $filteredData = $this->filterPlantData($completeData);
+            $this->storePlantData($filteredData);
+            return $filteredData;
+        }
+
+        // Vérifier si les données sont complètes
+        if ($this->isPlantDataComplete($plant)) {
+            return $plant->toArray();
+        }
+
+        // Compléter les données manquantes via l'API
+        if ($plant->api_id) {
+            $completeData = $this->getPlantData($plant->api_id);
+            if (!empty($completeData)) {
+                $filteredData = $this->filterPlantData($completeData);
+                $this->storePlantData($filteredData);
+                return $filteredData;
+            }
+        }
+
+        return $plant->toArray();
+    }
+
+    /**
+     * Vérifie si les données d'une plante sont complètes
+     */
+    private function isPlantDataComplete($plant): bool
+    {
+        $requiredFields = [
+            'api_id',
+            'common_name',
+            'watering_general_benchmark',
+            'watering',
+            'growth_rate',
+            'maintenance'
+        ];
+
+        foreach ($requiredFields as $field) {
+            if ($plant->$field === null) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

@@ -49,7 +49,7 @@ class UserPlantController extends Controller
 
         $plant = Plant::create([
             'common_name' => $request->common_name,
-            'watering_general_benchmark' => json_encode($request->watering_general_benchmark),
+            'watering_general_benchmark' =>  ($request->watering_general_benchmark),
         ]);
 
         // Attach the plant to the user (many-to-many)
