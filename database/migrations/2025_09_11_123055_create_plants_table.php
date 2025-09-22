@@ -25,7 +25,7 @@ return new class extends Migration
             $table->boolean('leaf')->default(false);
             $table->string('growth_rate')->nullable();
             $table->string('maintenance')->nullable();
-            $table->timestamps()->nullable();
+            $table->timestamps();
         });
     }
 
