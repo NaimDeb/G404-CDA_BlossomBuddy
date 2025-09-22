@@ -18,9 +18,15 @@ return new class extends Migration
             $table->id();
             $table->string("common_name");
             $table->json("watering_general_benchmark")->nullable();
+            $table->string('api_id')->nullable();
+            $table->string('watering')->nullable();
+            $table->boolean('flowers')->default(false);
+            $table->boolean('fruits')->default(false);
+            $table->boolean('leaf')->default(false);
+            $table->string('growth_rate')->nullable();
+            $table->string('maintenance')->nullable();
+            $table->timestamps()->nullable();
         });
-
-
     }
 
     /**
@@ -29,6 +35,5 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('plants');
-
     }
 };
