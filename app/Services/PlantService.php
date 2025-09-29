@@ -288,7 +288,7 @@ class PlantService implements PlantServiceInterface
      */
     public function resolvePlantByName(string $plantName): ?Plant{
 
-        $plant = Plant::where('common_name', 'LIKE', `$$plantName$`)->first();
+        $plant = Plant::where('common_name', 'LIKE', "%" . $plantName . "%")->first();
 
         if ($plant) {
 
