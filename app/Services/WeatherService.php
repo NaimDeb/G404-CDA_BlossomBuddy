@@ -19,7 +19,7 @@ class WeatherService extends BaseApiService implements WeatherServiceInterface
 
     public function __construct()
     {
-        $this->apiKey = env('WEATHER_API_KEY');
+        $this->apiKey = config('apiKeys.weather_api_key');
     }
 
 

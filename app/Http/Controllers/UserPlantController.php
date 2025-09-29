@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePlantRequest;
 use App\Models\Plant;
+use App\Notifications\WateringNotification;
 use App\Services\PlantService;
 use App\Services\Watering\Strategies\DefaultWateringStrategy;
 use App\Services\WeatherService;
@@ -39,6 +40,8 @@ class UserPlantController extends Controller
 
         $user = $request->user();
         $query = $user->plants();
+
+        $user->notify(new WateringNotification());
 
         // Todo : Ajouter un minimum (un max par exemple)
 
