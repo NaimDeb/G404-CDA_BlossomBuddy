@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePlantRequest;
 use App\Models\Plant;
 use App\Services\PlantService;
+use App\Services\Watering\Strategies\DefaultWateringStrategy;
 use App\Services\WeatherService;
 use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
@@ -15,11 +16,13 @@ class UserPlantController extends Controller
 
     protected $plantService;
     protected $weatherService;
+    protected $wateringStrategy;
 
     public function __construct()
     {
         $this->plantService = new PlantService();
         $this->weatherService = new WeatherService();
+        $this->wateringStrategy = new DefaultWateringStrategy();
     }
 
     /**
@@ -35,10 +38,26 @@ class UserPlantController extends Controller
     public function index(Request $request){
 
         $user = $request->user();
+        $query = $user->plants();
 
-        $userPlants = $user->plants;
+        // Todo : Ajouter un minimum (un max par exemple)
 
-        return $this->success($userPlants, $user->name . "'s plants retrieved successfully");
+        if ($request->has('plantName')) {
+            $results = $query->where("common_name", "LIKE", "%" . $request->plantName . "%" )->first();
+        } elseif ($request->has('plantId')) {
+            $results = $query->where("common_name",$request->plantId);
+        }
+
+
+        $plants = $query->get()->map(function ($plant) {
+            $plant->nextWatering = $this->wateringStrategy->calculateUntilNextWatering(
+                $plant,
+                $this->weatherService->getCurrentWeatherData($plant->pivot->city) // On récupère city de la table pivot user_plants
+            );
+            return $plant;
+        });
+
+        return $this->success($plants, $user->name . "'s plants retrieved successfully");
 
     }
     
