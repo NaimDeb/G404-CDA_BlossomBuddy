@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePlantRequest;
 use App\Models\Plant;
 use App\Services\PlantService;
+use App\Services\WeatherService;
 use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
 
@@ -13,10 +14,12 @@ class UserPlantController extends Controller
     use HttpResponses;
 
     protected $plantService;
+    protected $weatherService;
 
     public function __construct()
     {
         $this->plantService = new PlantService();
+        $this->weatherService = new WeatherService();
     }
 
     /**
@@ -66,12 +69,20 @@ class UserPlantController extends Controller
             return $this->error(null, "Plant $plant->common_name is already in user's collection", 409);
         }
 
+        // Todo : check if city exists, and take it from WeatherApi
+        $city = $this->weatherService->getCityName($validated["city"]);
+        if (!$city) return $this->error(null, "City " . $validated["city"] . " wasn't found", 409);
+
+        $weather = $this->weatherService->getCurrentWeatherData($city);
+
         // Attach the plant to the user (many-to-many)
-        $user->plants()->attach($plant->id);
+        $user->plants()->attach($plant->id, ['city' => $validated["city"]]);
 
-        // todo : ajouter utilisation a city
-
-        return $this->success("Plant $plant->common_name succesfully added in user $user->name's list in $request->city" , 201);
+        return $this->success([
+            'plant' => $plant,
+            'city' => $city,
+            'weather' => $weather
+        ], "Plant {$plant->common_name} added in {$city}", 201);
     }
 
     /**
