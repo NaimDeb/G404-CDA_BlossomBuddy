@@ -69,6 +69,8 @@ class UserPlantController extends Controller
         // Attach the plant to the user (many-to-many)
         $user->plants()->attach($plant->id);
 
+        // todo : ajouter utilisation a city
+
         return $this->success("Plant $plant->common_name succesfully added in user $user->name's list in $request->city" , 201);
     }
 
