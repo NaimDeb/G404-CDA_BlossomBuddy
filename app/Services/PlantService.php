@@ -277,4 +277,48 @@ class PlantService implements PlantServiceInterface
 
         return true;
     }
+
+    /**
+     * Récupère une plante
+     * - En cherchant premièrement dans la Database
+     * - Puis le cache
+     * - Puis dans l'API Perenual
+     * @param string $plantName Nom de la plante
+     * @return Plant|null
+     */
+    public function resolvePlantByName(string $plantName): ?Plant{
+
+        $plant = Plant::where('common_name', 'LIKE', `$$plantName$`)->first();
+
+        if ($plant) {
+
+            if (!$this->isPlantDataComplete($plant) && $plant->api_id) {
+                $completeData = $this->getPlantData($plant->api_id);
+                if (!empty($completeData)){
+                    $filteredData = $this->filterPlantData($completeData);
+                    $this->storePlantData($filteredData);
+                    $plant->refresh();
+                };
+            };
+
+            return $plant;
+        }
+
+        // Sinon on cherche dans l'API
+
+        $searchResult = $this->searchPlantByName($plantName);
+        if (empty($searchResult["results"] || empty($searchResult['results']['data']))) {
+            return null;
+        }
+
+        $apiId = $searchResult['results']['data'][0]['id'];
+        $completeData = $this->getPlantData($apiId);
+
+        if (empty($completeData)) return null;
+
+        $filteredData = $this->filterPlantData($completeData);
+        $this->storePlantData($filteredData);
+
+        return Plant::where('api_id', $filteredData['api_id'])->first();
+    }
 }
