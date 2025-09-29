@@ -4,12 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePlantRequest;
 use App\Models\Plant;
+use App\Services\PlantService;
 use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
 
 class UserPlantController extends Controller
 {
     use HttpResponses;
+
+    protected $plantService;
+
+    public function __construct()
+    {
+        $this->plantService = new PlantService();
+    }
 
     /**
      * @OA\Get(
@@ -34,7 +42,7 @@ class UserPlantController extends Controller
     /**
      * @OA\Post(
      *     path="/user/plant",
-     *     summary="Create a plant in the database and attach it to the user",
+     *     summary="Add a plant to the user's collection",
      *     tags={"Users"},
      *     @OA\Response(response=201, description="Successful operation"),
      *     @OA\Response(response=400, description="Invalid request"),
@@ -43,19 +51,25 @@ class UserPlantController extends Controller
      */
     public function store(StorePlantRequest $request){
 
-        $request->validated($request->all());
+        // Renvoie seulement les champs validés et attendus par la requête
+        $validated = $request->validated();
 
         $user = $request->user();
 
-        $plant = Plant::create([
-            'common_name' => $request->common_name,
-            'watering_general_benchmark' =>  ($request->watering_general_benchmark),
-        ]);
+        $plant = $this->plantService->resolvePlantByName($validated["plantName"]);
+
+        if (!$plant) {
+            return $this->error(null, 'Plant not found', 404);
+        }
+
+        if ($user->plants()->where('plant_id', $plant->id)->exists()) {
+            return $this->error(null, "Plant $plant->common_name is already in user's collection", 409);
+        }
 
         // Attach the plant to the user (many-to-many)
         $user->plants()->attach($plant->id);
 
-        return $this->success($plant, "Plant succesfully created by user " . $user->name, 201);
+        return $this->success("Plant $plant->common_name succesfully added in user $user->name's list in $request->city" , 201);
     }
 
     /**

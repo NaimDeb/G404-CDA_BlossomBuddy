@@ -22,8 +22,8 @@ class StorePlantRequest extends FormRequest
     public function rules(): array
     {
         return [
-            "common_name" => "required|string",
-            "watering_general_benchmark" => "required|json",
+            "plantName" => "required|string",
+            "city" => "required|string"
         ];
     }
 }
