@@ -53,6 +53,6 @@ class User extends Authenticatable
             "user_plant",
             "user_id",
             "plant_id"
-        );
+        )->withPivot("city");
     }
 }
