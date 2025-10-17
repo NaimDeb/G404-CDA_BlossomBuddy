@@ -34,7 +34,7 @@ abstract class AbstractApiQueryBuilder{
      */
     public function endpoint(string $endpoint): self
     {
-        $this->endpoint = $endpoint;
+        $this->endpoint = $this->apiUrl . ltrim($endpoint, '/');
         return $this;
     }
 
@@ -60,7 +60,7 @@ abstract class AbstractApiQueryBuilder{
     /**
      * Builds the full URL to call
      */
-    public function get()
+    public function get(): array
     {
         if (!$this->verifyIfEndpointComplete()) throw new InvalidArgumentException("You didn't submit any endpoint");
 
