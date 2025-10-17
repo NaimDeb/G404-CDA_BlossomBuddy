@@ -5,12 +5,7 @@ namespace App\Builder;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
-/**
- * @property-read string API_URL
- * @property-read string API_KEY
- * @property-read string API_KEY_NAME
- */
-#[\AllowDynamicProperties]
+
 abstract class AbstractApiQueryBuilder{
 
     // Placeholders des constantes pour pas qu'intelephense bug
