@@ -43,7 +43,7 @@ class UserPlantController extends Controller
 
         $user->notify(new WateringNotification());
 
-        // Todo : Ajouter un minimum (un max par exemple)
+        // Todo : Ajouter un minimum (un max par exemple) // ? ??????? Jcomprends même pas mes todo
 
         if ($request->has('plantName')) {
             $results = $query->where("common_name", "LIKE", "%" . $request->plantName . "%" )->first();
