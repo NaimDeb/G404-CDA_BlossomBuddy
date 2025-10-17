@@ -8,14 +8,9 @@ use InvalidArgumentException;
 
 class PlantApiQueryBuilder extends AbstractApiQueryBuilder
 {
-
-    public function __construct()
-    {
-        parent::__construct(
-            apiUrl: 'https://perenual.com/api/v2/',
-            apiKey: env('PLANT_API_KEY'),
-            apiKeyName: 'key'
-        );
-    }
+    
+    protected const API_URL = 'https://perenual.com/api/v2/';
+    protected const API_KEY = 'PLANT_API_KEY';
+    protected const API_KEY_NAME = 'key';
     
 }

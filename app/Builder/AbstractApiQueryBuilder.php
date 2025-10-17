@@ -5,8 +5,18 @@ namespace App\Builder;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
-
+/**
+ * @property-read string API_URL
+ * @property-read string API_KEY
+ * @property-read string API_KEY_NAME
+ */
+#[\AllowDynamicProperties]
 abstract class AbstractApiQueryBuilder{
+
+    // Placeholders des constantes pour pas qu'intelephense bug
+    protected const API_URL = '';
+    protected const API_KEY = '';
+    protected const API_KEY_NAME = 'key';
 
     protected string $apiUrl;
     protected string $apiKey;
@@ -15,11 +25,12 @@ abstract class AbstractApiQueryBuilder{
     protected ?string $endpoint = null;
     protected array $params = [];
 
-    public function __construct(string $apiUrl, ?string $apiKey = null, string $apiKeyName = 'key')
+    public function __construct()
     {
-        $this->apiUrl = $apiUrl;
-        $this->apiKey = $apiKey;
-        $this->apiKeyName = $apiKeyName;
+        // Late static building !!! ^^ ça rend les enfants plus propres
+        $this->apiUrl = static::API_URL;
+        $this->apiKey = static::API_KEY ?? null;
+        $this->apiKeyName = static::API_KEY_NAME ?? 'key';
     }
 
    /**
