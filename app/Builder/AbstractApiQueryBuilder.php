@@ -10,7 +10,7 @@ abstract class AbstractApiQueryBuilder{
 
     // Placeholders des constantes pour pas qu'intelephense bug
     protected const API_URL = '';
-    protected const API_KEY = '';
+    protected const API_KEY_CONFIG_PATH = '';
     protected const API_KEY_NAME = 'key';
 
     protected string $apiUrl;
@@ -24,7 +24,7 @@ abstract class AbstractApiQueryBuilder{
     {
         // Late static building !!! ^^ ça rend les enfants plus propres
         $this->apiUrl = static::API_URL;
-        $this->apiKey = static::API_KEY ?? null;
+        $this->apiKey = config(static::API_KEY_CONFIG_PATH) ?? null;
         $this->apiKeyName = static::API_KEY_NAME ?? 'key';
     }
 
