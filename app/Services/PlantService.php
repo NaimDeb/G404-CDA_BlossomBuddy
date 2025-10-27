@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 
+use App\Builder\PlantApiQueryBuilder;
 use App\Interfaces\PlantServiceInterface;
 use App\Models\Plant;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,12 @@ class PlantService implements PlantServiceInterface
     protected $cacheDuration = 86400; // 24 heures en secondes
     protected $maxApiSearchResults = 5; // Limite de résultats pour l'API
     protected $minDbSearchResults = 3; // Nombre minimum de résultats DB avant de stopper la recherche API
+
+    protected $queryBuilder;
+
+    public function __construct(){
+        $this->queryBuilder = new PlantApiQueryBuilder;
+    }
 
     /**
      * Recherche une plante par nom dans la DB, le cache, puis l'API.
@@ -46,29 +53,14 @@ class PlantService implements PlantServiceInterface
 
         // 3. Recherche via l'API
         $apiKey = env('PLANT_API_KEY');
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            try {
-                $response = \Illuminate\Support\Facades\Http::withoutVerifying()->get($this->apiNameSearchUrl, [
-                    'key' => $apiKey,
-                    'q' => $name,
-                    'limit' => $this->maxApiSearchResults
-                ]);
-                if ($response->successful()) {
-                    $data = $response->json();
-                    cache()->put($cacheKey, $data, now()->addSeconds($this->cacheDuration));
-                    return ['source' => 'api', 'results' => $data];
-                }
-                if ($attempt < $maxRetries) {
-                    sleep(2);
-                }
-            } catch (\Exception $e) {
-                if ($attempt === $maxRetries) {
-                    throw $e;
-                }
-                sleep(2);
-            }
-        }
-        return ['source' => 'none', 'results' => []];
+        
+
+        $response = $this->queryBuilder->endpoint('species-list')->addParam('q', $name)->addParam('limit', $this->maxApiSearchResults)->get();
+
+        cache()->put($cacheKey, $response, now()->addSeconds($this->cacheDuration));
+        return ['source' => 'api', 'results' => $response];
+                
+
     }
 
     public function fetchAndStorePlants(): void
