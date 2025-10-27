@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Builder\WeatherApiQueryBuilder;
 use App\Interfaces\WeatherServiceInterface;
 use App\Models\Plant;
 use Illuminate\Support\Facades\Cache;
@@ -11,15 +12,13 @@ use Illuminate\Support\Facades\Log;
 // Service appelé dans la commande FetchPlants
 class WeatherService extends BaseApiService implements WeatherServiceInterface 
 {
-    // Params : key (required). q (required)
-    protected $apiSearchUrl = 'http://api.weatherapi.com/v1/search.json';
-    // Params : key (required), q (optional)
-    protected $apiCurrentUrl = 'http://api.weatherapi.com/v1/current.json';
     protected $cacheDuration = 2 * 60 * 60; // 2 heures en secondes
+
+    protected $queryBuilder;
 
     public function __construct()
     {
-        $this->apiKey = config('apiKeys.weather_api_key');
+        $queryBuilder = new WeatherApiQueryBuilder();
     }
 
 
@@ -30,7 +29,10 @@ class WeatherService extends BaseApiService implements WeatherServiceInterface
 
         return Cache::remember($cacheKey, $this->cacheDuration, function () use ($city) {
 
-            $results = $this->callApi($this->apiCurrentUrl, ["q" => $city]);
+            $results = $this->queryBuilder
+                ->endpoint("current.json")
+                ->addParam("q", $city)
+                ->get();
 
             return $results;
         });
@@ -47,20 +49,26 @@ class WeatherService extends BaseApiService implements WeatherServiceInterface
      */
     public function getCityName(string $city)
     {
-        // ! Pas super vu que si l'utilisateur met un nom non complet (ex: :Londo), ça va créer un nouveau cache.
         $cacheKey = "city_search_" . md5(strtolower($city));
 
-        return Cache::remember($cacheKey, $this->cacheDuration, function () use ($city) {
-             $results = $this->callApi($this->apiSearchUrl, ["q" => $city]);
+        if (Cache::has($cacheKey)) {
+            return Cache::get($cacheKey);
+        }
 
-            if (empty($results)) {
-                Log::warning("City search returned empty results for '{$city}'");
-                return null;
-            }
+        $results = $this->queryBuilder
+                ->endpoint("search.json")
+                ->addParam("q", $city)
+                ->get();
 
-            // S'assurer que le champ 'name' existe
-            return $results[0]['name'] ?? null;
-        });
+        if (empty($results) || !isset($results[0]['name'])) {
+            return null;
+        }
+
+        $canonicalName = $results[0]['name'];
+
+        Cache::put($cacheKey, $canonicalName, $this->cacheDuration);
+
+        return $canonicalName;
     }
 
 
