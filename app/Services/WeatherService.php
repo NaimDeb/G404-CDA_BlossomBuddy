@@ -6,7 +6,6 @@ use App\Builder\WeatherApiQueryBuilder;
 use App\Interfaces\WeatherServiceInterface;
 use App\Models\Plant;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 // Service appelé dans la commande FetchPlants

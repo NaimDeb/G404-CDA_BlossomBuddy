@@ -1,26 +1,25 @@
 <?php
+
 namespace App\Services;
 
 use App\Builder\PlantApiQueryBuilder;
+use App\Exceptions\ApiFailedException;
 use App\Interfaces\PlantServiceInterface;
 use App\Models\Plant;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 // Service appelé dans la commande FetchPlants
 class PlantService implements PlantServiceInterface
 {
     // Params : key (required). Url must be /{id}?key=your_api_key
-    protected $apiIDSearchlUrl = 'https://perenual.com/api/v2/species/details';
-    // Params : key (required), q (optional), page=1 (required?)
-    protected $apiNameSearchUrl = 'https://perenual.com/api/v2/species-list';
     protected $cacheDuration = 86400; // 24 heures en secondes
     protected $maxApiSearchResults = 5; // Limite de résultats pour l'API
     protected $minDbSearchResults = 3; // Nombre minimum de résultats DB avant de stopper la recherche API
 
     protected $queryBuilder;
 
-    public function __construct(){
+    public function __construct()
+    {
         $this->queryBuilder = new PlantApiQueryBuilder;
     }
 
@@ -52,15 +51,15 @@ class PlantService implements PlantServiceInterface
         }
 
         // 3. Recherche via l'API
-        $apiKey = env('PLANT_API_KEY');
-        
 
-        $response = $this->queryBuilder->endpoint('species-list')->addParam('q', $name)->addParam('limit', $this->maxApiSearchResults)->get();
+        try {
+            $response = $this->queryBuilder->endpoint('species-list')->addParam('q', $name)->addParam('limit', $this->maxApiSearchResults)->get();
+        } catch (ApiFailedException $e) {
+            Log::error("Failed to fetch plant with name $name " . $response);
+        }
 
         cache()->put($cacheKey, $response, now()->addSeconds($this->cacheDuration));
         return ['source' => 'api', 'results' => $response];
-                
-
     }
 
     public function fetchAndStorePlants(): void
@@ -88,7 +87,7 @@ class PlantService implements PlantServiceInterface
                     $plantDataFiltered = $this->filterPlantData($plantData);
                     $this->storePlantData($plantDataFiltered);
                     $processedCount++;
-                    
+
                     // Log de progression
                     Log::info("Processed plant {$id} ({$processedCount} total)");
                 }
@@ -133,11 +132,11 @@ class PlantService implements PlantServiceInterface
                 }
             } catch (\Exception $e) {
                 Log::warning("Attempt {$attempt} failed for plant {$id}: " . $e->getMessage());
-                
+
                 if ($attempt === $maxRetries) {
                     throw $e;
                 }
-                
+
                 sleep(2);
             }
         }
@@ -155,18 +154,14 @@ class PlantService implements PlantServiceInterface
      */
     private function fetchPlantData(int $id): array
     {
-        $apiKey = env('PLANT_API_KEY');
-
-        $response = Http::withoutVerifying()->get("{$this->apiIDSearchlUrl}/{$id}", [
-            'key' => $apiKey
-        ]);
-
-        if ($response->successful()) {
-            return $response->json();
-        } else {
-            Log::error("Failed to fetch plant with ID {$id}: " . $response->body());
+        try {
+            $response = $this->queryBuilder->endpoint("details/$id")->get();
+        } catch (ApiFailedException $e) {
+            Log::error("Failed to fetch plant with ID {$id}: " . $e->getMessage());
             return [];
         }
+
+        return $response;
     }
 
     /**
@@ -189,7 +184,7 @@ class PlantService implements PlantServiceInterface
         ];
     }
 
-   
+
     private function storePlantData(array $plantData): void
     {
         // Utilisation de upsert pour éviter les doublons basés sur api_id
@@ -208,7 +203,7 @@ class PlantService implements PlantServiceInterface
     {
         // Chercher d'abord dans la DB
         $plant = Plant::where('common_name', 'LIKE', '%' . $name . '%')->first();
-        
+
         if (!$plant) {
             // Si pas dans la DB, chercher via l'API
             $searchResult = $this->searchPlantByName($name);
@@ -278,7 +273,8 @@ class PlantService implements PlantServiceInterface
      * @param string $plantName Nom de la plante
      * @return Plant|null
      */
-    public function resolvePlantByName(string $plantName): ?Plant{
+    public function resolvePlantByName(string $plantName): ?Plant
+    {
 
         $plant = Plant::where('common_name', 'LIKE', "%" . $plantName . "%")->first();
 
@@ -286,7 +282,7 @@ class PlantService implements PlantServiceInterface
 
             if (!$this->isPlantDataComplete($plant) && $plant->api_id) {
                 $completeData = $this->getPlantData($plant->api_id);
-                if (!empty($completeData)){
+                if (!empty($completeData)) {
                     $filteredData = $this->filterPlantData($completeData);
                     $this->storePlantData($filteredData);
                     $plant->refresh();

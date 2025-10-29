@@ -2,6 +2,7 @@
 
 namespace App\Builder;
 
+use App\Exceptions\ApiFailedException;
 use Exception;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
@@ -71,13 +72,12 @@ abstract class AbstractApiQueryBuilder{
         try {
             $response = Http::withoutVerifying()->get($this->endpoint, $this->params);
 
-            if (!$response->successful()) throw new Exception("The API response was unsuccessful : " . $response->body());
+            if (!$response->successful()) throw new ApiFailedException("The API response was unsuccessful : " . $response->body());
 
         } catch (Exception $e) {
             throw $e;
         }
 
-        // Transforms the data into json, should I put it somewhere else ? 
         $data = $response->json();
         return $data;
     }
