@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Builder\PlantApiQueryBuilder;
+use App\DTO\PlantDto;
 use App\Exceptions\ApiFailedException;
 use App\Interfaces\PlantServiceInterface;
+use App\Mappers\PlantMapper;
 use App\Models\Plant;
 use Illuminate\Support\Facades\Log;
 
@@ -30,7 +32,7 @@ class PlantService implements PlantServiceInterface
      * @param int $maxRetries
      * @return array
      */
-    public function searchPlantByName(string $name, int $maxRetries = 3): array
+    public function searchPlantByName(string $name): array
     {
         // 1. Recherche d'abord dans la base de données
         $dbResults = Plant::where('common_name', 'LIKE', '%' . $name . '%')
@@ -43,113 +45,69 @@ class PlantService implements PlantServiceInterface
             return ['source' => 'database', 'results' => $dbResults];
         }
 
-        // 2. Recherche dans le cache
+        // 2. Recherche dans le cache, si c'est déja dans le cache, on renvoie le résultat
         $cacheKey = "plant_search_" . md5($name);
         if (cache()->has($cacheKey)) {
             $cacheResults = cache()->get($cacheKey);
             return ['source' => 'cache', 'results' => $cacheResults];
         }
 
-        // 3. Recherche via l'API
-
+        // 3. Sinon, Récupération de la plante via l'API
         try {
             $response = $this->queryBuilder->endpoint('species-list')->addParam('q', $name)->addParam('limit', $this->maxApiSearchResults)->get();
         } catch (ApiFailedException $e) {
             Log::error("Failed to fetch plant with name $name " . $response);
         }
 
-        cache()->put($cacheKey, $response, now()->addSeconds($this->cacheDuration));
-        return ['source' => 'api', 'results' => $response];
-    }
-
-    public function fetchAndStorePlants(): void
-    {
-        $processedCount = 0;
-        $batchSize = 10; // Traiter 10 plantes à la fois
-        $maxRetries = 3;
-        $cacheHits = 0;
-        $apiHits = 0;
-
-        Log::info("Starting plant data fetch process...");
-
-        for ($id = 200; $id <= 203; $id++) {
-            try {
-                // Vérifier le taux limite toutes les 10 requêtes
-                if ($processedCount > 0 && $processedCount % $batchSize === 0) {
-                    sleep(2); // Pause de 2 secondes entre les lots
-                    Log::info("Batch complete, taking a short break...");
-                }
-
-                Log::info("Processing plant ID: {$id}");
-                $plantData = $this->getPlantData($id, $maxRetries, $cacheHits, $apiHits);
-
-                if ($plantData && !empty($plantData)) {
-                    $plantDataFiltered = $this->filterPlantData($plantData);
-                    $this->storePlantData($plantDataFiltered);
-                    $processedCount++;
-
-                    // Log de progression
-                    Log::info("Processed plant {$id} ({$processedCount} total)");
-                }
-            } catch (\Exception $e) {
-                Log::error("Failed to process plant {$id}: " . $e->getMessage());
-                continue;
-            }
+        $dtos = [];
+        foreach ($response as $row) {
+            $dto = PlantMapper::fromSearchApi($row);
+            $dtos[] = $dto;
         }
+
+
+        // Résultat de l'API mis en cache
+        cache()->put($cacheKey,
+            array_map(fn($dto) => $dto->toArray(), $dtos),
+            now()->addSeconds($this->cacheDuration)
+        );
+        return ['source' => 'api', 'results' => $dtos];
     }
 
     /**
-     * Récupère les données d'une plante depuis le cache ou l'API
+     * Récupère les données d'une plante depuis le cache ou l'API via l'ID
+     * @param int $id : Id de la plante côté API (Perenual) ou dans le cache
      */
-    private function getPlantData(int $id, int $maxRetries = 3, &$cacheHits = 0, &$apiHits = 0): array
+    private function getPlantData(int $id): ?PlantDto
     {
         $cacheKey = "plant_data_{$id}";
 
         // Vérifier si les données sont en cache
         if (cache()->has($cacheKey)) {
-            $cacheHits++;
-            Log::info("✓ Retrieved plant {$id} from CACHE (Cache hits: {$cacheHits})");
-            return cache()->get($cacheKey);
+            Log::info("✓ Retrieved plant {$id} from CACHE");
+            return PlantDto::fromArray(cache()->get($cacheKey));
         }
 
-        $apiHits++;
-        Log::info("→ Fetching plant {$id} from API (API calls: {$apiHits})");
-
-        // Sinon, faire l'appel API avec retry
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            try {
-                $plantData = $this->fetchPlantData($id);
-
-                if (!empty($plantData)) {
-                    // Mettre en cache pour 24 heures
-                    cache()->put($cacheKey, $plantData, now()->addSeconds($this->cacheDuration));
-                    Log::info("Stored plant {$id} in cache");
-                    return $plantData;
-                }
-
-                if ($attempt < $maxRetries) {
-                    sleep(2); // Attendre 2 secondes avant de réessayer
-                }
-            } catch (\Exception $e) {
-                Log::warning("Attempt {$attempt} failed for plant {$id}: " . $e->getMessage());
-
-                if ($attempt === $maxRetries) {
-                    throw $e;
-                }
-
-                sleep(2);
-            }
+        // Sinon, faire l'appel API
+        Log::info("... Retrieving plant {$id} from API");
+        $rawPlantData = $this->fetchPlantData($id);
+        if (empty($rawPlantData)) {
+            return null;
         }
 
+        // Normalisation de la donnée dans un DTO
+        $dto = PlantMapper::fromDetailsApi($rawPlantData);
 
+        // Mettre en cache pour 24 heures
+        cache()->put($cacheKey, $dto->toArray(), now()->addSeconds($this->cacheDuration));
+        Log::info("Stored plant {$id} in cache");
 
-
-        return [];
+        return $dto;
     }
 
     /**
-     * Fetches plant data from the Perenual API.
-     * @param int $id
+     * Récupère les données complètes d'une plante depuis l'endpoint details de l'API
+     * @param int $id : Identifiant de la plante côté API
      * @return array
      */
     private function fetchPlantData(int $id): array
@@ -164,27 +122,6 @@ class PlantService implements PlantServiceInterface
         return $response;
     }
 
-    /**
-     * Filters plant data to keep only the relevant fields.
-     * @param array $plantData
-     * @return array
-     */
-    private function filterPlantData(array $plantData): array
-    {
-        return [
-            'api_id' => $plantData['id'],
-            'common_name' => $plantData['common_name'],
-            'watering_general_benchmark' => $plantData['watering_general_benchmark'],
-            'watering' => $plantData['watering'] ?? null,
-            'flowers' => (bool)($plantData['flowers'] ?? false),
-            'fruits' => (bool)($plantData['fruits'] ?? false),
-            'leaf' => (bool)($plantData['leaf'] ?? false),
-            'growth_rate' => $plantData['growth_rate'] ?? null,
-            'maintenance' => $plantData['maintenance'] ?? null,
-        ];
-    }
-
-
     private function storePlantData(array $plantData): void
     {
         // Utilisation de upsert pour éviter les doublons basés sur api_id
@@ -197,49 +134,32 @@ class PlantService implements PlantServiceInterface
     /**
      * Vérifie si les données d'une plante sont complètes et les complète via l'API si nécessaire
      * @param string $name Nom de la plante
-     * @return array|null Données complètes de la plante ou null si non trouvée
+     * @return ?Plant Données complètes de la plante ou null si non trouvée
      */
-    public function checkAndCompleteData(string $name): ?array
+    public function checkAndCompleteData(Plant $plant): ?Plant
     {
-        // Chercher d'abord dans la DB
-        $plant = Plant::where('common_name', 'LIKE', '%' . $name . '%')->first();
+        // Vérification si les données sont déja complètes
+        $isComplete = $this->isPlantDataComplete($plant);
+        if ($isComplete) {
+            return $plant;
+        }
 
-        if (!$plant) {
-            // Si pas dans la DB, chercher via l'API
-            $searchResult = $this->searchPlantByName($name);
+        if (!$plant->api_id) {
+            // Todo : Je sais pas trop faire quelque chose ici 
+            // searchPlantByName avec $plant->common_name
+            // Et après jle fill mais vsy flm
+            // ALI AIDE MOI
+            $searchResult = $this->searchPlantByName($plant->common_name);
             if (empty($searchResult['results']) || empty($searchResult['results']['data'])) {
                 return null;
             }
-
-            // Récupérer les données complètes via l'API pour le premier résultat
-            $apiId = $searchResult['results']['data'][0]['id'];
-            $completeData = $this->getPlantData($apiId);
-            if (empty($completeData)) {
-                return null;
-            }
-
-            // Filtrer et sauvegarder les données
-            $filteredData = $this->filterPlantData($completeData);
-            $this->storePlantData($filteredData);
-            return $filteredData;
         }
+        // On récupère les données via API
+        $plantDetails = $this->getPlantData($plant->api_id); // DTO
+        // On le met dans l'instance Plant, et on sauvegarde
+        $plant->fill($plantDetails->toArray())->save();
 
-        // Vérifier si les données sont complètes
-        if ($this->isPlantDataComplete($plant)) {
-            return $plant->toArray();
-        }
-
-        // Compléter les données manquantes via l'API
-        if ($plant->api_id) {
-            $completeData = $this->getPlantData($plant->api_id);
-            if (!empty($completeData)) {
-                $filteredData = $this->filterPlantData($completeData);
-                $this->storePlantData($filteredData);
-                return $filteredData;
-            }
-        }
-
-        return $plant->toArray();
+        return $plant;
     }
 
     /**
@@ -264,7 +184,6 @@ class PlantService implements PlantServiceInterface
 
         return true;
     }
-
     /**
      * Récupère une plante
      * - En cherchant premièrement dans la Database
@@ -275,38 +194,17 @@ class PlantService implements PlantServiceInterface
      */
     public function resolvePlantByName(string $plantName): ?Plant
     {
-
+        // 1. Récupération de plante via la Base de donnée.
         $plant = Plant::where('common_name', 'LIKE', "%" . $plantName . "%")->first();
-
         if ($plant) {
-
-            if (!$this->isPlantDataComplete($plant) && $plant->api_id) {
-                $completeData = $this->getPlantData($plant->api_id);
-                if (!empty($completeData)) {
-                    $filteredData = $this->filterPlantData($completeData);
-                    $this->storePlantData($filteredData);
-                    $plant->refresh();
-                };
-            };
-
-            return $plant;
+            return $this->checkAndCompleteData($plant);
         }
 
         // Sinon on cherche dans l'API
 
         $searchResult = $this->searchPlantByName($plantName);
-        if (empty($searchResult["results"] || empty($searchResult['results']['data']))) {
-            return null;
-        }
+        $firstDto = $searchResult['results'][0] ?? null;
 
-        $apiId = $searchResult['results']['data'][0]['id'];
-        $completeData = $this->getPlantData($apiId);
-
-        if (empty($completeData)) return null;
-
-        $filteredData = $this->filterPlantData($completeData);
-        $this->storePlantData($filteredData);
-
-        return Plant::where('api_id', $filteredData['api_id'])->first();
+        return $this->checkAndCompleteData($firstDto);
     }
 }
