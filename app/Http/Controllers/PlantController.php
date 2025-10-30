@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePlantRequest;
 use App\Models\Plant;
+use App\Services\PlantService;
 use App\Traits\HttpResponses;
 use Illuminate\Http\Request;
 
@@ -70,13 +71,19 @@ class PlantController extends Controller
      */
     public function show($name)
     {
-        $plantData = app(\App\Services\PlantService::class)->checkAndCompleteData($name);
+        $result = app(PlantService::class)->resolvePlantByName($name);
 
-        if (!$plantData) {
+        if (!$result) {
             return $this->error(null, 'Plant not found', 404);
         }
 
-        return $this->success($plantData);
+        // Si c’est un modèle Eloquent
+        if ($result instanceof \App\Models\Plant) {
+            return $this->success($result->toArray());
+        }
+
+        // Sinon c’est un DTO
+        return $this->success($result->toArray());
     }
 
     /**
