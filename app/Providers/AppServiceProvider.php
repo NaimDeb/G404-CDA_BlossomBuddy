@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Interfaces\PlantServiceInterface;
+use App\Models\UserPlant;
+use App\Observers\UserPlantObserver;
 use App\Services\PlantService;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
@@ -23,5 +25,6 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+        UserPlant::observe(UserPlantObserver::class);
     }
 }
