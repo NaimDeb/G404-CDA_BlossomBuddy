@@ -14,6 +14,7 @@ class UserPlantObserver
     {
         $plant = $userPlant->plant;
         $city = $userPlant->city;
+        if (!$city) return;
         // app() au lieu de new pour rendre le code SOLID. Si j'ai a faire des tests unitaires, et que je veux changer de service, j'ai juste a faire $this->app->bind(WeatherService::class, FakeWeatherService::class); au lieu d'overload
         $weatherService = app(WateringService::class);
         $nextWateringAt = $weatherService->calculateNextWatering($plant, $city);
