@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\UserPlant;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -11,12 +12,14 @@ class WateringNotification extends Notification
 {
     use Queueable;
 
+    private UserPlant $userPlant;
+
     /**
      * Create a new notification instance.
      */
-    public function __construct()
+    public function __construct($userPlant)
     {
-        //
+        $this->userPlant = $userPlant;
     }
 
     /**
@@ -34,7 +37,13 @@ class WateringNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)->markdown('mail.watering-notification');
+        $userName = $this->userPlant->user->name;
+        $plantName = $this->userPlant->plant->common_name;
+
+        return (new MailMessage)
+            ->subject("Bonjour $userName ,Arrosage requis")
+            ->line("Ta plante $plantName a besoin d'eau 🌿")
+            ->action('Voir mes plantes', url('/'));
     }
 
     /**

@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\UserPlant;
+use App\Notifications\WateringNotification;
 use App\Services\WateringService;
 
 class UserPlantObserver
@@ -20,6 +21,11 @@ class UserPlantObserver
         $nextWateringAt = $weatherService->calculateNextWatering($plant, $city);
 
         $userPlant->update(['next_watering_at' => $nextWateringAt]);
+        // Envoi mail
+        $userPlant->user->notify()(
+            (new WateringNotification($userPlant))->delay($nextWateringAt)
+        );
+
     }
 
     /**
