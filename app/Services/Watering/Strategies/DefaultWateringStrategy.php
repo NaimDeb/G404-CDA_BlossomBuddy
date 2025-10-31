@@ -6,6 +6,9 @@ use App\Models\Plant;
 use App\Services\Watering\Contracts\WateringStrategyInterface;
 use Illuminate\Support\Facades\Log;
 
+/**
+ * Stratégie de calcul de next watering.
+ */
 class DefaultWateringStrategy implements WateringStrategyInterface {
 
 
