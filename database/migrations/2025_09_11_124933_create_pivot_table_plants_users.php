@@ -19,6 +19,7 @@ return new class extends Migration
             $table->foreignIdFor(Plant::class)->constrained()->cascadeOnDelete();
             $table->foreignIdFor(User::class)->constrained()->cascadeOnDelete();
             $table->string('city')->nullable();
+            $table->dateTime('next_watering_at')->nullable();
 
         });
     }

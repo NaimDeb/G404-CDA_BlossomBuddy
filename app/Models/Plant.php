@@ -40,6 +40,7 @@ class Plant extends Model
         ];
     }
 
+    // Pas de pivot ici car on ne va pas utiliser $plant->users->city
     public function users(){
         return $this->belongsToMany(
             User::class,
