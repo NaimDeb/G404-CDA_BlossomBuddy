@@ -21,7 +21,7 @@ class UserPlantObserver
         $nextWateringAt = $weatherService->calculateNextWatering($plant, $city);
 
         $userPlant->update(['next_watering_at' => $nextWateringAt]);
-        // Envoi mail
+        // Envoi mail.
         $userPlant->user->notify()(
             (new WateringNotification($userPlant))->delay($nextWateringAt)
         );
